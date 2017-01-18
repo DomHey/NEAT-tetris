@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-var clivas = require('clivas');
-var keypress = require('keypress');
-var R = require('./ml/recurrent.js');
-var N = require('./ml/neat.js');
+var clivas = require('./clivas');
+var keypress = require('./keypress');
+var R = require('./tetris/ml/recurrent.js');
+var N = require('./tetris/ml/neat.js');
 
 var WIDTH = 15;
 var HEIGHT = 20;
