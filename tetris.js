@@ -1,8 +1,8 @@
 var R = require('./tetris/ml/recurrent.js');
 var N = require('./tetris/ml/neat.js');
 
-var WIDTH = 15;
-var HEIGHT = 20;
+var WIDTH = 7;
+var HEIGHT = 10;
 
 var bestScore = 0
 var generation = 1
@@ -13,7 +13,7 @@ var BLOCK = 1
 
 var dwArray = []
 
-for (var i = 0; i < 300; i++) {
+for (var i = 0; i < WIDTH*HEIGHT; i++) {
 	dwArray.push(0)
 };
 
@@ -30,7 +30,7 @@ var fitnessFunc = function(genome, _backpropMode, _nCycles) {
 
 var initModel = function() {
   // setup NEAT universe:
-  N.init({nInput: 300, nOutput: 3, // 2 inputs (x, y) coordinate, one output (class)
+  N.init({nInput: WIDTH*HEIGHT, nOutput: 3, // 2 inputs (x, y) coordinate, one output (class)
     initConfig: "all", // initially, each input is connected to each output when "all" is used
     activations : "default", // [SIGMOID, TANH, RELU, GAUSSIAN, SIN, ABS, MULT, SQUARE, ADD] for "default"
   });
@@ -38,7 +38,7 @@ var initModel = function() {
   trainer = new N.NEATTrainer({
     new_node_rate : 0.5, // probability of a new node created for each genome during each evolution cycle
     new_connection_rate : 0.5, // probability of a new connection created for each genome during each evolution cycle, if it can be created
-    num_populations: 1, // cluster the population into 5 sub populations that are similar using k-medoids
+    num_populations: 5, // cluster the population into 5 sub populations that are similar using k-medoids
     sub_population_size : 10, // each sub population has 20 members, so 100 genomes in total
     init_weight_magnitude : 0.25, // randomise initial weights to be gaussians with zero mean, and this stdev.
     mutation_rate : 0.5, // probability of mutation for weights (for this example i made it large)
@@ -86,7 +86,7 @@ function startGame(gnome){
 
 	var selectFigure = function() {
 		y = -1
-		x = 7
+		x = Math.floor(WIDTH/2)
 	};
 
 	var moveFigure = function(dx,dy) {
@@ -141,12 +141,11 @@ function startGame(gnome){
 	function calculateInput(gn) {
 		var inputdata = []
 		inputdata = [].concat.apply([], board)
-
-		var model = {n:1, d:300, w: new Float32Array(inputdata), dw: new Float32Array(dwArray)}
+		var model = {n:1, d:WIDTH*HEIGHT, w: new Float32Array(inputdata), dw: new Float32Array(dwArray)}
 
 		gn.setupModel(1)
 	    gn.setInput(model); // put the input data into the network
-	    var G = new R.Graph(false); // setup the recurrent.js graph. if no backprop, faster.
+	    var G = new R.Graph(true); // setup the recurrent.js graph. if no backprop, faster.
 	    gn.forward(G); // propagates the network forward.
 	    var output = gn.getOutput();
 	    results = []
@@ -155,17 +154,6 @@ function startGame(gnome){
 	    results.push(G.sigmoid(output[2]).w[0])
 
 	    var key = indexOfMax(results)
-
-	    /*if(key == 0) {
-	    	moveFigure(-1, 0); // move left
-	    } else if(key == 1) {
-			if (moveFigure(0, 1)) { // move down
-			}
-	    } else if (key == 2){
-			moveFigure(1, 0); // move right
-	    } else if (key == 3){
-	    	rotateFigure(1); // rotate
-	    }*/
 
 	    if(key == 0) {
 	    	moveFigure(-1, 0);
@@ -225,9 +213,6 @@ function startGame(gnome){
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
 				bordRow.push(board[i][j])
-				if(board[i][j] == 1) {
-					filledFields++;
-				}
 			}
 			console.log(bordRow)
 			bordRow = []
