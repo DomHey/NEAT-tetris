@@ -245,16 +245,18 @@ function startGame(gnome){
 
 	    var key = indexOfMax(results)
 
+
+
 	    if(key == 0) {
-	    	moveFigure(-1, 0);
+	    	moveFigure(-1, 0); // move left
 	    } else if(key == 1) {
-			if (moveFigure(0, 1)) {
+			if (moveFigure(0, 1)) { // move down
 				score++
 			}
 	    } else if (key == 2){
-			moveFigure(1, 0);
+			moveFigure(1, 0); // move right
 	    } else if (key == 3){
-	    	rotateFigure(1);
+	    	rotateFigure(1); // rotate
 	    }
 	}
 
@@ -278,12 +280,12 @@ function startGame(gnome){
 
 	function gameLoop() {	
 		while(true) {
-			calculateInput(gn)
+			calculateInput(gn) // calculate the input accordingly to genome
 			var canMove = moveFigure(0,1)
-			if(!canMove && (y<0)) {
+			if(!canMove && (y<0)) { // if top of gamefield is reached the game ends for that genome
 				break;
 			}
-			if(!canMove) {
+			if(!canMove) { // if the figure cannot move down check for lines and select new figure
 				removeLines();
 				selectFigure();
 			}
@@ -295,6 +297,6 @@ function startGame(gnome){
 
 	selectFigure();
 	addFigureMutation();
-	return gameLoop()
+	return gameLoop() // if the game ends return score to fitnessfunction
 
 }
