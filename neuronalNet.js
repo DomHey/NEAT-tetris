@@ -2,6 +2,10 @@ var INPUT = 0
 var HIDDEN = 1
 var OUTPUT = 2
 
+function sigmoid(t) {
+    return 1/(1+Math.pow(Math.E, -t));
+}
+
 
 function nodeKonstruktor(t)
 {
@@ -25,47 +29,91 @@ function nodeKonstruktor(t)
 			sum += backN[i].getCalculatedNodeValue() * this.backWardsConnections.getWeight()[i]
 		}
 
-		sum += this.nodeValue
-		this.nodeValue = sum
-		return sum
+		this.nodeValue = sigmoid(sum)
+		return this.nodeValue
+	},
+	this.getConnection = function() {
+		return this.backWardsConnections
 	}
 }
 
-function linkKonstruktor(w, bn)
+function linkKonstruktor()
 {
-	var weight = w;
-	var backNodes = bn;
+	var weight = 0;
+	var backNodes = [];
 	this.getBackNodes = function() {
-		return backNodes
+		return this.backNodes
 	},
 	this.getWeight = function () {
-		return weight
+		return this.weight
+	},
+	this.setWeight = function(w) {
+	 	this.weight = w
+	},
+	this.setBackNodes = function(bn) {
+		this.backNodes = bn
 	}
-
 } 
 
+function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
+	var inputNodes = []
+	for (var i = inputLayer - 1; i >= 0; i--) {
+		inputNodes.push(new nodeKonstruktor(INPUT))
+	}
 
-var node1 = new nodeKonstruktor(INPUT)
-node1.setNodeValue(1)
+	var hiddenNodes = []
+	for (var i = hiddenLayer - 1; i >= 0; i--) {
+		hiddenNodes.push(new nodeKonstruktor(HIDDEN))
+	}
 
-var node2 = new nodeKonstruktor(HIDDEN)
-node2.setNodeValue(2)
+	var outputNodes = []
+	for (var i = outputLayer - 1; i >= 0; i--) {
+		outputNodes.push(new nodeKonstruktor(OUTPUT))
+	}
 
-var node3 = new nodeKonstruktor(HIDDEN)
-node3.setNodeValue(2)
+	for (var i = hiddenNodes.length - 1; i >= 0; i--) {
+		var weights = []
+		for (var j = inputNodes.length - 1; j >= 0; j--) {
+			weights.push(Math.random() - 0.5)
+		}
+		var link = new linkKonstruktor()
+		link.setWeight(weights)
+		link.setBackNodes(inputNodes)
+		hiddenNodes[i].setConnections(link)
+	}
 
-var node4 = new nodeKonstruktor(OUTPUT)
-node4.setNodeValue(0)
+	for (var i = outputNodes.length - 1; i >= 0; i--) {
+		var weights = []
+		for (var j = hiddenNodes.length - 1; j >= 0; j--) {
+			weights.push(Math.random() - 0.5)
+		}
+		var link = new linkKonstruktor()
+		link.setWeight(weights)
+		link.setBackNodes(hiddenNodes)
+		outputNodes[i].setConnections(link)
+	}
 
-var connection = new linkKonstruktor([1,1], [node2, node3])
-node4.setConnections(connection)
+	this.setInput = function(vals) {
+		if(inputNodes.length != vals.length) {
+			console.log("input vals not same length as input nodes")
+			return
+		}
 
-var connection2 = new linkKonstruktor([1], [node1])
-var connection3 = new linkKonstruktor([1], [node1])
+		for (var i = 0; i < vals.length; i++) {
+			inputNodes[i].setNodeValue(vals[i])
+		}
+	},
 
-node2.setConnections(connection2)
-node3.setConnections(connection3)
+	this.activate = function() {
+		for (var i = 0; i < hiddenNodes.length; i++) {
+			hiddenNodes[i].activate()
+		}
 
-console.log(node2.activate())
-console.log(node3.activate())
-console.log(node4.activate())
+		var result = []
+		for (var i = 0; i < outputNodes.length; i++) {
+			result.push(outputNodes[i].activate())
+		}
+
+		return result
+	}
+}

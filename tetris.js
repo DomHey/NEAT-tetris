@@ -1,69 +1,147 @@
-var R = require('./tetris/ml/recurrent.js');
-var N = require('./tetris/ml/neat.js');
+var _ = require('lodash');
+var sleep = require('system-sleep');
 
 var WIDTH = 7;
 var HEIGHT = 10;
-
 var bestScore = 0
 var generation = 1
-
 var genomesCount = 0
-
 var BLOCK = 1
-
 var dwArray = []
+var population = []
+var finishedPopulation = []
 
-for (var i = 0; i < WIDTH*HEIGHT; i++) {
-	dwArray.push(0)
-};
+var extinctionRate = 0.1
+var mutationRate = 0.2
+var weightMutationRate = 0.3
+var weightMaxMutationAmount = 0.1
+var popCounter = 1
+var initialPopulationSize = 100
+var bestGenome
 
-var fitnessFunc = function(genome, _backpropMode, _nCycles) {
-	var genomeScore = startGame(genome)
-	if(genomeScore > bestScore) {
-		bestScore = genomeScore
-	}
-	genomesCount++
-	console.log("generation: " + generation + " population: " + genomesCount + " scored: " + genomeScore)
-	return -(1 - genomeScore/1000)
-}
-
-
-var initModel = function() {
-  // setup NEAT universe:
-  N.init({nInput: WIDTH*HEIGHT, nOutput: 3, // 2 inputs (x, y) coordinate, one output (class)
-    initConfig: "all", // initially, each input is connected to each output when "all" is used
-    activations : "default", // [SIGMOID, TANH, RELU, GAUSSIAN, SIN, ABS, MULT, SQUARE, ADD] for "default"
-  });
-  // setup NEAT trainer with the hyper parameters for GA.
-  trainer = new N.NEATTrainer({
-    new_node_rate : 0.5, // probability of a new node created for each genome during each evolution cycle
-    new_connection_rate : 0.5, // probability of a new connection created for each genome during each evolution cycle, if it can be created
-    num_populations: 5, // cluster the population into 5 sub populations that are similar using k-medoids
-    sub_population_size : 10, // each sub population has 20 members, so 100 genomes in total
-    init_weight_magnitude : 0.25, // randomise initial weights to be gaussians with zero mean, and this stdev.
-    mutation_rate : 0.5, // probability of mutation for weights (for this example i made it large)
-    mutation_size : 0.5, // if weights are mutated, how much we mutate them by in stdev? (I made it very small for this example)
-    extinction_rate : 0.2, // probably that the worst performing sub population goes extinct at each evolution cycle
-  }); // the initial population of genomes is randomly created after N.NEATTrainer constructor is called.
-  trainer.applyFitnessFunc(fitnessFunc); // this would calculate the fitness for each genome in the population, and clusters them into the 5 sub populations
-};
-
-initModel();
+createPopulation(initialPopulationSize)
 
 while(true) {
-	var gen = trainer.getBestGenome()
-	console.log("fitness: " + gen.fitness.toPrecision(3) + ", nodes: "+gen.getNodesInUse().length+", connections: "+gen.connections.length)
-	trainer.evolve();
-	genomesCount = 0
-	generation++
-	trainer.applyFitnessFunc(fitnessFunc)
+	console.log("Population: " + popCounter + " size: " + population.length)
+	finishedPopulation = []
+	if(population.length == 0) {
+		break;
+	}
+	if(popCounter == 2) {
+		setTimeout(showBestGenome, 1000)
+		break;
+	}
+
+	for (var i = 0; i < population.length; i++) {
+		var genomeScore = startGame(population[i])
+		if(genomeScore > bestScore) {
+			bestScore = genomeScore
+			bestGenome = _.cloneDeep(population[i])
+		}
+		finishedPopulation.push({"pop":population[i], "score":genomeScore})
+	}
+	console.log("best score: " + bestScore)
+	if(population.length > 2*initialPopulationSize) {
+		extinctionRate = 0.4
+	} else {
+		extinctionRate = 0.1
+	}
+	decimatePopulation()
+	mutatePopulation()
+	popCounter++
+}
+
+function breedPopulations(g1, g2) {
+
+}
+
+function showBestGenome() {
+
+	startGame(bestGenome,true)
+	
+}
+
+function decimatePopulation() {
+	var populationCopy = []
+	for (var i = 0; i < finishedPopulation.length; i++) {
+		if((finishedPopulation[i]).score == bestScore) {
+			populationCopy.push((finishedPopulation[i]).pop)
+		} else {
+			if(Math.random() > extinctionRate) {
+				populationCopy.push((finishedPopulation[i]).pop)
+			}
+		}
+	}
+
+	population = populationCopy
+}
+
+function mutatePopulation() {
+	var populationCopy = []
+	for (var i = population.length - 1; i >= 0; i--) {
+		if(Math.random() <= mutationRate) {
+			var mutatedPop = _.cloneDeep(population[i])
+			//get the three output nodes
+			var outputN = mutatedPop.getOutputNodes()
+			for (var j = 0; j < outputN.length; j++) {
+				var oN = outputN[j]
+				var weights = oN.getConnection().getWeight()
+				var newWeights = []
+				for (var k = 0; k < weights.length; k++) {
+					if(Math.random() < weightMutationRate) {
+						if(getRandomInt(0,1) == 0) {
+							newWeights.push(weights[k] - weightMaxMutationAmount)
+						} else {
+							newWeights.push(weights[k] + weightMaxMutationAmount)
+						}
+					} else {
+						newWeights.push(weights[k])
+					}
+				}
+				oN.getConnection().setWeight(newWeights)
+			}
+
+			//mutateHiddenWeights
+
+			var hiddenN = mutatedPop.getHiddenNodes()
+			for (var j = 0; j < hiddenN.length; j++) {
+				var hN = hiddenN[j]
+				var weights = hN.getConnection().getWeight()
+				var newWeights = []
+				for (var k = 0; k < weights.length; k++) {
+					if(Math.random() < weightMutationRate) {
+						if(getRandomInt(0,1) == 0) {
+							newWeights.push(weights[k] - weightMaxMutationAmount)
+						} else {
+							newWeights.push(weights[k] + weightMaxMutationAmount)
+						}
+					} else {
+						newWeights.push(weights[k])
+					}
+				}
+				hN.getConnection().setWeight(newWeights)
+			}
+
+
+			populationCopy.push(mutatedPop)
+		}
+			populationCopy.push(population[i])
+	}
+	population = populationCopy
 }
 
 
-function startGame(gnome){
+
+
+function createPopulation(amount) {
+	for (var i = amount - 1; i >= 0; i--) {
+		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(1,40) , 3))
+	}
+}
+
+
+function startGame(gnome, showBoard){
 	var gn = gnome
-	var R = require('./tetris/ml/recurrent.js');
-	var N = require('./tetris/ml/neat.js');
 
 	var nextFigure = 0
 	var board = [];
@@ -141,57 +219,48 @@ function startGame(gnome){
 	function calculateInput(gn) {
 		var inputdata = []
 		inputdata = [].concat.apply([], board)
-		var model = {n:1, d:WIDTH*HEIGHT, w: new Float32Array(inputdata), dw: new Float32Array(dwArray)}
+	    gn.setInput(inputdata)
+	    var output = gn.activate()
 
-		gn.setupModel(1)
-	    gn.setInput(model); // put the input data into the network
-	    var G = new R.Graph(true); // setup the recurrent.js graph. if no backprop, faster.
-	    gn.forward(G); // propagates the network forward.
-	    var output = gn.getOutput();
 	    results = []
-	    results.push(G.sigmoid(output[0]).w[0])
-	    results.push(G.sigmoid(output[1]).w[0])
-	    results.push(G.sigmoid(output[2]).w[0])
+	    results.push(output[0])
+	    results.push(output[1])
+	    results.push(output[2])
 
 	    var key = indexOfMax(results)
 
-	    if(key == 0) {
-	    	moveFigure(-1, 0);
-	    } else if(key == 1) {
-	    	moveFigure(1, 0);
-	    } else if(key = 2) {
-	    	moveFigure(0, 1)
-	    }
+	    return key
 	}
 
-	function indexOfMax(arr) {
-	    if (arr.length === 0) {
-	        return -1;
-	    }
-
-	    var max = arr[0];
-	    var maxIndex = 0;
-
-	    for (var i = 1; i < arr.length; i++) {
-	        if (arr[i] > max) {
-	            maxIndex = i;
-	            max = arr[i];
-	        }
-	    }
-
-	    return maxIndex;
-	}
 
 	function gameLoop() {	
 		var bordRow = []
 		while(true) {
+			if(showBoard) {
+				printBoard()
+			}
+
+			if(score > 200) {
+				break
+			}
 		
-			calculateInput(gn) // calculate the input accordingly to genome
-			var canMove = moveFigure(0,1)
+			var move = calculateInput(gn) // calculate the input accordingly to genome
+			var canMove
+			if(move == 0) {
+	    		moveFigure(-1, 0);
+	    		canMove = moveFigure(0,1)
+	    	} else if(move == 1) {
+	    		moveFigure(1, 0);
+	    		canMove = moveFigure(0,1)
+	    	} else if(move = 2) {
+	    		canMove = moveFigure(0, 1)
+	    	}
+			
 			if(!canMove && (y<=0)) { // if top of gamefield is reached the game ends for that genome
 				break;
 			}
 			if(!canMove) { // if the figure cannot move down check for lines and select new figure
+				checkForLine();
 				selectFigure();
 			}
 		}
@@ -205,11 +274,58 @@ function startGame(gnome){
 			}
 
 		}
+		if(showBoard) {
+			console.log("SCORE" + score)
+			console.log("FF" + filledFields)
+		}
 
 		return score + filledFields
 	}
 
+	function checkForLine() {
+		var bordRow = []
+
+		for (var j = 0; j < WIDTH; j++) {
+			bordRow.push(board[HEIGHT-1][j])
+		}
+					
+		if(bordRow.indexOf(0) == (-1)) {
+			for (var j = 0; j < WIDTH; j++) {
+				board[HEIGHT-1][j] = 0
+			}
+
+			score += 10
+			var newBoard = []
+			for (var i = 0; i < HEIGHT; i++) {
+				newBoard[i] = [];
+				for (var j = 0; j < WIDTH; j++) {
+					newBoard[i][j] = 0;
+				}
+			}
+
+			for (var i = 1; i < HEIGHT; i++) {
+				for (var j = 0; j < WIDTH; j++) {
+					newBoard[i][j] = board[i-1][j];
+				}
+			}
+			board = newBoard
+
+
+		}
+		bordRow = []
+
+
+
+
+	}
+
 	function printBoard() {
+		sleep(20)
+		var bordRow = []
+		var lines = process.stdout.getWindowSize()[1];
+		for(var i = 0; i < lines; i++) {
+		    console.log('\r\n');
+		}
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
 				bordRow.push(board[i][j])
@@ -218,12 +334,158 @@ function startGame(gnome){
 			bordRow = []
 
 		}
-		console.log("----------------------")
 	}
-
-
 
 	selectFigure();
 	return gameLoop() // if the game ends return score to fitnessfunction
 
 }
+
+var INPUT = 0
+var HIDDEN = 1
+var OUTPUT = 2
+
+function sigmoid(t) {
+    return 1/(1+Math.pow(Math.E, -t));
+}
+
+function nodeKonstruktor(t)
+{
+	var nodeType = t;
+	var backWardsConnections = [];
+	var nodeValue = 0;
+	var calculatedNodeValue = 0;
+	this.setConnections = function(con) {
+		this.backWardsConnections = con
+	},
+	this.setNodeValue = function(val) {
+		this.nodeValue = val
+	}
+	this.getCalculatedNodeValue = function() {
+		return this.nodeValue
+	},
+	this.activate = function() {
+		var sum = 0
+		var backN = this.backWardsConnections.getBackNodes()
+		for (var i = backN.length - 1; i >= 0; i--) {
+			sum += backN[i].getCalculatedNodeValue() * this.backWardsConnections.getWeight()[i]
+		}
+
+		this.nodeValue = sigmoid(sum)
+		return this.nodeValue
+	},
+	this.getConnection = function() {
+		return this.backWardsConnections
+	}
+}
+
+function linkKonstruktor()
+{
+	var weight = 0;
+	var backNodes = [];
+	this.getBackNodes = function() {
+		return this.backNodes
+	},
+	this.getWeight = function () {
+		return this.weight
+	},
+	this.setWeight = function(w) {
+	 	this.weight = w
+	},
+	this.setBackNodes = function(bn) {
+		this.backNodes = bn
+	}
+} 
+
+function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
+	var inputNodes = []
+	for (var i = inputLayer - 1; i >= 0; i--) {
+		inputNodes.push(new nodeKonstruktor(INPUT))
+	}
+
+	var hiddenNodes = []
+	for (var i = hiddenLayer - 1; i >= 0; i--) {
+		hiddenNodes.push(new nodeKonstruktor(HIDDEN))
+	}
+
+	var outputNodes = []
+	for (var i = outputLayer - 1; i >= 0; i--) {
+		outputNodes.push(new nodeKonstruktor(OUTPUT))
+	}
+
+	for (var i = hiddenNodes.length - 1; i >= 0; i--) {
+		var weights = []
+		for (var j = inputNodes.length - 1; j >= 0; j--) {
+			weights.push(Math.random() - 0.5)
+		}
+		var link = new linkKonstruktor()
+		link.setWeight(weights)
+		link.setBackNodes(inputNodes)
+		hiddenNodes[i].setConnections(link)
+	}
+
+	for (var i = outputNodes.length - 1; i >= 0; i--) {
+		var weights = []
+		for (var j = hiddenNodes.length - 1; j >= 0; j--) {
+			weights.push(Math.random() - 0.5)
+		}
+		var link = new linkKonstruktor()
+		link.setWeight(weights)
+		link.setBackNodes(hiddenNodes)
+		outputNodes[i].setConnections(link)
+	}
+
+	this.setInput = function(vals) {
+		if(inputNodes.length != vals.length) {
+			console.log("input vals not same length as input nodes")
+			return
+		}
+
+		for (var i = 0; i < vals.length; i++) {
+			inputNodes[i].setNodeValue(vals[i])
+		}
+	},
+
+	this.activate = function() {
+		for (var i = 0; i < hiddenNodes.length; i++) {
+			hiddenNodes[i].activate()
+		}
+
+		var result = []
+		for (var i = 0; i < outputNodes.length; i++) {
+			result.push(outputNodes[i].activate())
+		}
+
+		return result
+	},
+
+	this.getOutputNodes = function(){
+		return outputNodes
+	},
+
+	this.getHiddenNodes = function(){
+		return hiddenNodes
+	}
+}
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function indexOfMax(arr) { 
+  if (arr.length === 0) { 
+      return -1; 
+  } 
+
+  var max = arr[0]; 
+  var maxIndex = 0; 
+
+  for (var i = 1; i < arr.length; i++) { 
+      if (arr[i] > max) { 
+          maxIndex = i; 
+          max = arr[i]; 
+      } 
+  } 
+
+  return maxIndex; 
+} 
