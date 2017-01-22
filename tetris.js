@@ -7,7 +7,6 @@ var bestScore = 0
 var generation = 1
 var genomesCount = 0
 var BLOCK = 1
-var dwArray = []
 var population = []
 var finishedPopulation = []
 
@@ -16,44 +15,42 @@ var mutationRate = 0.2
 var weightMutationRate = 0.3
 var weightMaxMutationAmount = 0.1
 var popCounter = 1
-var initialPopulationSize = 100
+var initialPopulationSize = 10
 var bestGenome
 
 createPopulation(initialPopulationSize)
 
 while(true) {
+	var bestPopulationScore = 0
 	console.log("Population: " + popCounter + " size: " + population.length)
 	finishedPopulation = []
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 2) {
-		setTimeout(showBestGenome, 1000)
+	if(popCounter == 50) {
+		setTimeout(showBestGenome, 10000)
 		break;
 	}
 
 	for (var i = 0; i < population.length; i++) {
 		var genomeScore = startGame(population[i])
+		
 		if(genomeScore > bestScore) {
 			bestScore = genomeScore
 			bestGenome = _.cloneDeep(population[i])
+
 		}
+		console.log("generation: " + popCounter + " population: " + i + " scored: " + genomeScore)
 		finishedPopulation.push({"pop":population[i], "score":genomeScore})
 	}
+
 	console.log("best score: " + bestScore)
-	if(population.length > 2*initialPopulationSize) {
-		extinctionRate = 0.4
-	} else {
-		extinctionRate = 0.1
-	}
+
 	decimatePopulation()
 	mutatePopulation()
 	popCounter++
 }
 
-function breedPopulations(g1, g2) {
-
-}
 
 function showBestGenome() {
 
@@ -62,75 +59,25 @@ function showBestGenome() {
 }
 
 function decimatePopulation() {
-	var populationCopy = []
-	for (var i = 0; i < finishedPopulation.length; i++) {
-		if((finishedPopulation[i]).score == bestScore) {
-			populationCopy.push((finishedPopulation[i]).pop)
-		} else {
-			if(Math.random() > extinctionRate) {
-				populationCopy.push((finishedPopulation[i]).pop)
+	for (var i = finishedPopulation.length - 1; i >= 0; i--) {
+		if((finishedPopulation[i]).score != bestScore) {
+			var deathProb = ((finishedPopulation[i]).score) / bestScore
+			if(Math.random() > deathProb) {
+				population.splice(i,1)
 			}
 		}
 	}
-
-	population = populationCopy
 }
 
 function mutatePopulation() {
-	var populationCopy = []
-	for (var i = population.length - 1; i >= 0; i--) {
+	for (var i = 0; i < finishedPopulation.length; i++) {
 		if(Math.random() <= mutationRate) {
-			var mutatedPop = _.cloneDeep(population[i])
-			//get the three output nodes
-			var outputN = mutatedPop.getOutputNodes()
-			for (var j = 0; j < outputN.length; j++) {
-				var oN = outputN[j]
-				var weights = oN.getConnection().getWeight()
-				var newWeights = []
-				for (var k = 0; k < weights.length; k++) {
-					if(Math.random() < weightMutationRate) {
-						if(getRandomInt(0,1) == 0) {
-							newWeights.push(weights[k] - weightMaxMutationAmount)
-						} else {
-							newWeights.push(weights[k] + weightMaxMutationAmount)
-						}
-					} else {
-						newWeights.push(weights[k])
-					}
-				}
-				oN.getConnection().setWeight(newWeights)
-			}
-
-			//mutateHiddenWeights
-
-			var hiddenN = mutatedPop.getHiddenNodes()
-			for (var j = 0; j < hiddenN.length; j++) {
-				var hN = hiddenN[j]
-				var weights = hN.getConnection().getWeight()
-				var newWeights = []
-				for (var k = 0; k < weights.length; k++) {
-					if(Math.random() < weightMutationRate) {
-						if(getRandomInt(0,1) == 0) {
-							newWeights.push(weights[k] - weightMaxMutationAmount)
-						} else {
-							newWeights.push(weights[k] + weightMaxMutationAmount)
-						}
-					} else {
-						newWeights.push(weights[k])
-					}
-				}
-				hN.getConnection().setWeight(newWeights)
-			}
-
-
-			populationCopy.push(mutatedPop)
+			var newNetwork = ((finishedPopulation[i]).pop).cloneNetwork()
+			newNetwork.mutateWeights()
+			population.push(newNetwork)
 		}
-			populationCopy.push(population[i])
 	}
-	population = populationCopy
 }
-
-
 
 
 function createPopulation(amount) {
@@ -279,7 +226,7 @@ function startGame(gnome, showBoard){
 			console.log("FF" + filledFields)
 		}
 
-		return score + filledFields
+		return (score + filledFields)
 	}
 
 	function checkForLine() {
@@ -390,10 +337,10 @@ function linkKonstruktor()
 		return this.weight
 	},
 	this.setWeight = function(w) {
-	 	this.weight = w
+	 	this.weight = w.slice()
 	},
 	this.setBackNodes = function(bn) {
-		this.backNodes = bn
+		this.backNodes = bn.slice()
 	}
 } 
 
@@ -465,6 +412,100 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 
 	this.getHiddenNodes = function(){
 		return hiddenNodes
+	},
+	this.getInputNodes = function(){
+		return inputNodes
+	},
+
+	this.setHiddenNodes = function(hn) {
+		hiddenNodes = hn.slice()
+	},
+	this.setOutputNodes = function(on) {
+		outputNodes = on.slice()
+	},
+	this.setInputNodes = function(iN) {
+		inputNodes = iN.slice()
+	}
+	this.cloneNetwork = function() {
+
+
+		var newInputNodes = []
+		for (var i = 0; i <= inputNodes.length - 1; i++) {
+			newInputNodes.push(new nodeKonstruktor(INPUT))
+		}
+
+
+		var newHiddenNodes = []
+		var newOutputNodes = []
+
+		for (var i = 0; i <= hiddenNodes.length - 1; i++) {
+			var link = new linkKonstruktor()
+			var hNode = new nodeKonstruktor(HIDDEN)
+			var w = ((hiddenNodes[i]).getConnection().getWeight()).slice()
+			link.setWeight(w)
+			link.setBackNodes(newInputNodes)
+			hNode.setConnections(link)
+			newHiddenNodes.push(hNode)
+		}
+
+		for (var i = 0; i <= outputNodes.length - 1; i++) {
+			var link = new linkKonstruktor()
+			var oNode = new nodeKonstruktor(OUTPUT)
+			var w = ((outputNodes[i]).getConnection().getWeight()).slice()
+			link.setWeight(w)
+			link.setBackNodes(newHiddenNodes)
+			oNode.setConnections(link)
+			newOutputNodes.push(oNode)
+		}
+
+		var newNetwork = new createNeuronalNet(WIDTH * HEIGHT, 1 , 3)
+		newNetwork.setInputNodes(newInputNodes)
+		newNetwork.setHiddenNodes(newHiddenNodes)
+		newNetwork.setOutputNodes(newOutputNodes)
+		return newNetwork
+
+	},
+
+	this.mutateWeights = function() {
+		for (var i = 0; i < outputNodes.length; i++) {
+			var weights = (outputNodes[i]).getConnection().getWeight()
+			var newWeights = []
+			for (var j = 0; j < weights.length; j++) {
+				if(Math.random() < weightMutationRate) {
+					var w = weights[j]
+					if(getRandomInt(0,1) == 0) {
+						newWeights.push(w - weightMaxMutationAmount)
+					} else {
+						newWeights.push(w + weightMaxMutationAmount)
+					}
+				} else {
+					var w = weights[j]
+					newWeights.push(w)
+				}
+			}
+			(outputNodes[i]).getConnection().setWeight(newWeights)
+		}
+
+		//mutateHiddenWeights
+
+
+		for (var i = 0; i < hiddenNodes.length; i++) {
+			var weights = (hiddenNodes[i]).getConnection().getWeight()
+			var newWeights = []
+			for (var j = 0; j < weights.length; j++) {
+				if(Math.random() < weightMutationRate) {
+					if(getRandomInt(0,1) == 0) {
+						newWeights.push(weights[j] - weightMaxMutationAmount)
+					} else {
+						newWeights.push(weights[j] + weightMaxMutationAmount)
+					}
+				} else {
+					newWeights.push(weights[j])
+				}
+			}
+			(hiddenNodes[i]).getConnection().setWeight(newWeights)
+		}
+		return this
 	}
 }
 
