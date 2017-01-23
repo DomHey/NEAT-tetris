@@ -1,8 +1,16 @@
 var _ = require('lodash');
 var sleep = require('system-sleep');
 
-var WIDTH = 7;
-var HEIGHT = 10;
+var NOCOLLISION = 0
+var TILECOLLISION = 1
+var GAMEEND = 2
+
+var O_SHAPE = 0
+var I_SHAPE = 1
+
+
+var WIDTH = 16;
+var HEIGHT = 20;
 var bestScore = 0
 var generation = 1
 var genomesCount = 0
@@ -17,6 +25,7 @@ var weightMaxMutationAmount = 0.1
 var popCounter = 1
 var initialPopulationSize = 10
 var bestGenome
+var tileSequence = []
 
 createPopulation(initialPopulationSize)
 
@@ -51,11 +60,8 @@ while(true) {
 	popCounter++
 }
 
-
 function showBestGenome() {
-
 	startGame(bestGenome,true)
-	
 }
 
 function decimatePopulation() {
@@ -79,21 +85,24 @@ function mutatePopulation() {
 	}
 }
 
-
 function createPopulation(amount) {
+
+	for (var i = 100000; i >= 0; i--) {
+		tileSequence.push(getRandomInt(0,1))
+	}
+
 	for (var i = amount - 1; i >= 0; i--) {
 		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(1,40) , 3))
 	}
 }
 
-
 function startGame(gnome, showBoard){
 	var gn = gnome
-
 	var nextFigure = 0
 	var board = [];
 	var x = 0;
 	var y = 0;
+	var tileSeqIndex = 0
 
 	var figure;
 	var score = 0;
@@ -112,6 +121,8 @@ function startGame(gnome, showBoard){
 	var selectFigure = function() {
 		y = -1
 		x = Math.floor(WIDTH/2)
+		figure = new shapeKonstruktor(board, x, y, tileSequence[tileSeqIndex])
+		tileSeqIndex++
 	};
 
 	var moveFigure = function(dx,dy) {
@@ -194,19 +205,19 @@ function startGame(gnome, showBoard){
 			var move = calculateInput(gn) // calculate the input accordingly to genome
 			var canMove
 			if(move == 0) {
-	    		moveFigure(-1, 0);
-	    		canMove = moveFigure(0,1)
+				figure.moveLeft()
+	    		canMove = figure.moveDown()
 	    	} else if(move == 1) {
-	    		moveFigure(1, 0);
-	    		canMove = moveFigure(0,1)
+	    		figure.moveRight()
+	    		canMove = figure.moveDown()
 	    	} else if(move = 2) {
-	    		canMove = moveFigure(0, 1)
+	    		canMove = figure.moveDown()
 	    	}
 			
-			if(!canMove && (y<=0)) { // if top of gamefield is reached the game ends for that genome
+			if(!canMove.possible && canMove.reason == 2) { // if top of gamefield is reached the game ends for that genome
 				break;
 			}
-			if(!canMove) { // if the figure cannot move down check for lines and select new figure
+			if(!canMove.possible) { // if the figure cannot move down check for lines and select new figure
 				checkForLine();
 				selectFigure();
 			}
@@ -260,10 +271,6 @@ function startGame(gnome, showBoard){
 
 		}
 		bordRow = []
-
-
-
-
 	}
 
 	function printBoard() {
@@ -286,6 +293,190 @@ function startGame(gnome, showBoard){
 	selectFigure();
 	return gameLoop() // if the game ends return score to fitnessfunction
 
+}
+
+function checkTilePoints(baseArray, point) {
+	var match = false
+	for (var i = baseArray.length - 1; i >= 0; i--) {
+		var bAP = baseArray[i]
+		var firstcheck = false
+		for (var j = bAP.length - 1; j >= 0; j--) {
+			var coord1 = bAP[j]
+			var coord2 = point[j]
+			if(coord1 == coord2) {
+				if(firstcheck) {
+					match = true
+					break
+				} else {
+					firstcheck = true
+				}
+			}
+		}
+		if(match) {
+			break
+		}
+	}
+	return match
+}
+
+function shapeKonstruktor(b, startX, startY, type) {
+	var x = startX
+	var y = startY
+	var tiles
+
+	if(type == O_SHAPE) {
+		tiles = [[x, y], [x+1, y], [x, y+1], [x+1, y+1]]
+	} else if(type == I_SHAPE) {
+		tiles = [[x, y], [x, y-1], [x, y-2], [x, y-3]]
+	}
+	var board = b
+
+	this.moveLeft = function() {
+		var canMoveLeft = true
+		for (var i = tiles.length - 1; i >= 0; i--) {
+			var t = tiles[i]
+			//tile on the left corner
+			if(t[0] == 0) {
+				canMoveLeft = false
+				break
+			}
+			if(t[1] < 0) {
+				continue
+			}
+			//check if blocked on the left side by itself or another shape
+			if(board[t[1]][t[0]-1] != 0) {
+				var collisionPoint = [t[0]-1, t[1]]
+				if(!checkTilePoints(tiles, collisionPoint)){
+					canMoveLeft = false
+				}
+			}
+			if(!canMoveLeft) {
+				break
+			}
+		}
+
+		if(canMoveLeft) {
+			// update board and tile positions
+			removeTileFromBoard(board, tiles)
+			for (var i = tiles.length - 1; i >= 0; i--) {
+				var t = tiles[i]
+				var sx = t[0]
+				var sy = t[1]
+				tiles[i][0] = sx - 1
+			}
+			updateTilePositionOnBoard(board, tiles)
+		}
+
+		return canMoveLeft
+	},
+	this.moveRight = function() {
+		var canMoveRight = true
+		for (var i = tiles.length - 1; i >= 0; i--) {
+			var t = tiles[i]
+			//tile on the right corner
+			if(t[0] == board[0].length) {
+				canMoveRight = false
+				break
+			}
+			if(t[1] < 0) {
+				continue
+			}
+			//check if blocked on the right side by itself or another shape
+			if(board[t[1]][t[0]+1] != 0) {
+				var collisionPoint = [t[0]+1, t[1]]
+				if(!checkTilePoints(tiles, collisionPoint)){
+					canMoveRight = false
+				}
+			}
+			if(!canMoveRight) {
+				break
+			}
+		}
+
+		if(canMoveRight) {
+		// update board and tile positions
+		removeTileFromBoard(board, tiles)
+			for (var i = tiles.length - 1; i >= 0; i--) {
+				var t = tiles[i]
+				var sx = t[0]
+				var sy = t[1]
+				tiles[i][0] = sx + 1
+			}
+			updateTilePositionOnBoard(board, tiles)
+		}
+
+		return canMoveRight
+	},
+	this.rotate = function() {
+
+	},
+	this.moveDown = function() {
+		var canMoveDown = true
+		var res = 0
+		for (var i = tiles.length - 1; i >= 0; i--) {
+			var t = tiles[i]
+			//tile on the bottom border
+			if(t[1] == board.length - 1) {
+				canMoveDown = false
+				break
+			}
+			if(t[1] < -1) {
+				continue
+			}
+
+			//check if blocked on the bottom side by itself or another shape
+			if(board[t[1]+1][t[0]] != 0) {
+				var collisionPoint = [t[0], t[1]+1]
+				if(!checkTilePoints(tiles, collisionPoint)){
+					canMoveDown = false
+				}
+			}
+			if(!canMoveDown) {
+				//check for gameend
+				res = 1
+				for (var j = tiles.length - 1; j >= 0; j--) {
+					var t2 = tiles[j]
+					if(t2[1] < 0) {
+						res = 2
+						break
+					}
+				}
+				break
+			}
+		}
+		if(canMoveDown) {
+		// update board and tile positions
+		removeTileFromBoard(board, tiles)
+			for (var i = tiles.length - 1; i >= 0; i--) {
+				var t = tiles[i]
+				var sx = t[0]
+				var sy = t[1]
+				tiles[i][1] = sy + 1
+			}
+			updateTilePositionOnBoard(board, tiles)
+		}
+		return {"possible" : canMoveDown, "reason" : res}
+	}
+}
+
+function removeTileFromBoard(board, tileArray) {
+	for (var i = tileArray.length - 1; i >= 0; i--) {
+		var t = tileArray[i]
+		if(t[1] < 0) {
+			continue
+		}
+		board[t[1]][t[0]] = 0
+	}
+}
+
+function updateTilePositionOnBoard(board, tileArray) {
+	for (var i = tileArray.length - 1; i >= 0; i--) {
+		var t = tileArray[i]
+		if(t[1] < 0) {
+			continue
+		}
+		board[t[1]][t[0]] = 1
+	}
 }
 
 var INPUT = 0
