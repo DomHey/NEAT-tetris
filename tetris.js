@@ -28,7 +28,7 @@ var mutationRate = 0.2
 var weightMutationRate = 0.3
 var weightMaxMutationAmount = 0.1
 var popCounter = 1
-var initialPopulationSize = 25
+var initialPopulationSize = 200
 var bestGenome
 var tileSequence = []
 
@@ -94,11 +94,10 @@ function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
 		tileSequence.push(getRandomInt(0,6))
-		//tileSequence.push(0)
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
-		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(1,40) , 3))
+		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(10,40) , 4))
 	}
 }
 
@@ -195,6 +194,7 @@ function startGame(gnome, showBoard){
 	    results.push(output[0])
 	    results.push(output[1])
 	    results.push(output[2])
+	    results.push(output[3])
 
 	    var key = indexOfMax(results)
 
@@ -221,7 +221,10 @@ function startGame(gnome, showBoard){
 	    	} else if(move == 1) {
 	    		figure.moveRight()
 	    		canMove = figure.moveDown()
-	    	} else if(move = 2) {
+	    	} else if(move == 2) {
+	    		canMove = figure.moveDown()
+	    	} else if(move == 3) {
+	    		figure.rotate()
 	    		canMove = figure.moveDown()
 	    	}
 			
@@ -247,8 +250,8 @@ function startGame(gnome, showBoard){
 			console.log("SCORE" + score)
 			console.log("FF" + filledFields)
 		}
-
-		return (score + filledFields)
+		return score
+		//return (score + filledFields)
 	}
 
 	function checkForLine() {
@@ -423,9 +426,6 @@ function shapeKonstruktor(b, startX, startY, type) {
 
 		return canMoveRight
 	},
-	this.rotate = function() {
-
-	},
 	this.moveDown = function() {
 		var canMoveDown = true
 		var res = 0
@@ -474,40 +474,25 @@ function shapeKonstruktor(b, startX, startY, type) {
 		return {"possible" : canMoveDown, "reason" : res}
 	},
 
-	this.rotate_T_SHAPE = function() {
-		var shouldRotate = false
+	this.rotate_T_SHAPE = function(board, tiles) {
 		var checktileX
 		var checktileY
 		if(rotation == 0) {
 			checktileX = tiles[1][0] 
 			checktileY = tiles[1][1] - 1
-			if(board[checktileY][checktileX] == 0) {
-				shouldRotate = true
-			}
 		} else if(rotation == 90) {
 			checktileX = tiles[1][0] - 1
 			checktileY = tiles[1][1] 
-			if(checktileX > 0) {
-				if(board[checktileY][checktileX] == 0) {
-					shouldRotate = true
-				}
-			}
 		} else if(rotation == 180) {
 			checktileX = tiles[1][0] 
 			checktileY = tiles[1][1] + 1
-			if(board[checktileY][checktileX] == 0) {
-				shouldRotate = true
-			}
 		} else if(rotation == 270) {
 			checktileX = tiles[1][0] + 1
 			checktileY = tiles[1][1]
-			if(checktileX < board.length - 2)
-			if(board[checktileY][checktileX] == 0) {
-				shouldRotate = true
-			}
 		}
 
-		if(shouldRotate) {
+		if(isBoardCellEmpty(board, checktileX, checktileY)) {
+			removeTileFromBoard(board, tiles)
 			var x0 = tiles[3][0]
 			var y0 = tiles[3][1]
 
@@ -523,16 +508,232 @@ function shapeKonstruktor(b, startX, startY, type) {
 			}
 		}
 	},
-	this.rotate_I_SHAPE = function() {
+	this.rotate_I_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
 		if(rotation == 0) {
-			var c0x = tiles[1][0] + 1
-			var c0y = tiles[1][1]
-			var c2x = tiles[1][0] - 1
-			var c2y = tiles[1][1]
-			var c3x = tiles[1][0] - 2
-			var c3y = tiles[1][1]
-			if((c3x >= 0) && (c0x < board.length - 2))
-			if((board[c0y][c0x] == 0) && (board[c2y][c2x] == 0) && (board[c3y][c3x] == 0)) {
+			c0x = tiles[1][0] + 1
+			c0y = tiles[1][1]
+			c2x = tiles[1][0] - 1
+			c2y = tiles[1][1]
+			c3x = tiles[1][0] - 2
+			c3y = tiles[1][1]
+
+		} else if(rotation == 180) {
+			c0x = tiles[1][0]
+			c0y = tiles[1][1] + 1
+			c2x = tiles[1][0]
+			c2y = tiles[1][1] - 1
+			c3x = tiles[1][0]
+			c3y = tiles[1][1] - 2
+		}
+
+		if((isBoardCellEmpty(board, c0x, c0y)) && (isBoardCellEmpty(board, c2x, c2y)) && (isBoardCellEmpty(board, c3x, c3y))) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+			rotation += 180
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+
+
+	},
+	this.rotate_L_SHAPE = function(board, tiles) {
+		var shouldRotate = false
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 2
+			c0y = tiles[0][1]
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] 
+			c3y = tiles[3][1] + 2
+		} else if(rotation == 90) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] - 2
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+		} else if(rotation == 180) {
+			c0x = tiles[0][0] - 2
+			c0y = tiles[0][1]
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] - 2
+		} else if(rotation == 270) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] + 2
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+		}
+		if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c1x, c1y)) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[1][0] = c1x
+			tiles[1][1] = c1y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_J_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] - 1
+			c1x = tiles[1][0]
+			c1y = tiles[1][1] - 2
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+		} else if(rotation == 90) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] - 1
+			c1x = tiles[1][0] - 2
+			c1y = tiles[1][1]
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] + 2
+		} else if(rotation == 180) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] + 1
+			c1x = tiles[1][0]
+			c1y = tiles[1][1] + 2
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+		} else if(rotation == 270) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] + 1
+			c1x = tiles[1][0] + 2
+			c1y = tiles[1][1]
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] - 2
+		}
+		if(isBoardCellEmpty(board, c2x, c2y) && isBoardCellEmpty(board, c3x, c3y)) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[1][0] = c1x
+			tiles[1][1] = c1y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_Z_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] + 2
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] + 1
+			c3x = tiles[3][0] - 1
+			c3y = tiles[3][1] - 1
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c1x, c1y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[1][0] = c1x
+				tiles[1][1] = c1y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 180
+			}
+		} else if(rotation == 180) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] - 2
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] - 1
+			c3x = tiles[3][0] + 1
+			c3y = tiles[3][1] + 1
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[1][0] = c1x
+				tiles[1][1] = c1y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_S_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] + 1
+			c2x = tiles[1][0] - 1
+			c2y = tiles[1][1] + 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
 				tiles[0][0] = c0x
 				tiles[0][1] = c0y
 				tiles[2][0] = c2x
@@ -541,15 +742,15 @@ function shapeKonstruktor(b, startX, startY, type) {
 				tiles[3][1] = c3y
 				rotation = 180
 			}
-
 		} else if(rotation == 180) {
-			var c0x = tiles[1][0]
-			var c0y = tiles[1][1] + 1
-			var c2x = tiles[1][0]
-			var c2y = tiles[1][1] - 1
-			var c3x = tiles[1][0]
-			var c3y = tiles[1][1] - 2
-			if((board[c0y][c0x] == 0) && (board[c2y][c2x] == 0) && (board[c3y][c3x] == 0)) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+			if(isBoardCellEmpty(board, c2x, c2y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
 				tiles[0][0] = c0x
 				tiles[0][1] = c0y
 				tiles[2][0] = c2x
@@ -560,10 +761,32 @@ function shapeKonstruktor(b, startX, startY, type) {
 			}
 		}
 	},
-	this.rotate_L_SHAPE = function() {
-
+	this.rotate = function() {
+		if(type == O_SHAPE) {
+			return
+		} else if(type == I_SHAPE) {
+			this.rotate_I_SHAPE(board, tiles)
+		} else if(type == L_SHAPE) {
+			this.rotate_L_SHAPE(board, tiles)
+		} else if(type == J_SHAPE) {
+			this.rotate_J_SHAPE(board, tiles)
+		} else if(type == Z_SHAPE) {
+			this.rotate_Z_SHAPE(board, tiles)
+		} else if(type == S_SHAPE) {
+			this.rotate_S_SHAPE(board, tiles)
+		} else if(type == T_SHAPE) {
+			this.rotate_T_SHAPE(board, tiles)
+		}
+		updateTilePositionOnBoard(board, tiles)
 	}
+}
 
+function isBoardCellEmpty(board, x, y) {
+	if(x < 0) return false;
+	if(x > WIDTH-1) return false;
+	if(y < 0) return true;
+	if(y > HEIGHT-1) return false;
+	return (0 == board[y][x])
 }
 
 function removeTileFromBoard(board, tileArray) {
