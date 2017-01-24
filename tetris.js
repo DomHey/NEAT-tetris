@@ -7,9 +7,14 @@ var GAMEEND = 2
 
 var O_SHAPE = 0
 var I_SHAPE = 1
+var L_SHAPE = 2
+var Z_SHAPE = 3
+var S_SHAPE = 4
+var J_SHAPE = 5
+var T_SHAPE = 6
 
 
-var WIDTH = 16;
+var WIDTH = 10;
 var HEIGHT = 20;
 var bestScore = 0
 var generation = 1
@@ -23,7 +28,7 @@ var mutationRate = 0.2
 var weightMutationRate = 0.3
 var weightMaxMutationAmount = 0.1
 var popCounter = 1
-var initialPopulationSize = 10
+var initialPopulationSize = 25
 var bestGenome
 var tileSequence = []
 
@@ -36,8 +41,8 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 50) {
-		setTimeout(showBestGenome, 10000)
+	if(popCounter == 300) {
+		setTimeout(showBestGenome, 5000)
 		break;
 	}
 
@@ -88,7 +93,8 @@ function mutatePopulation() {
 function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
-		tileSequence.push(getRandomInt(0,1))
+		tileSequence.push(getRandomInt(0,6))
+		//tileSequence.push(0)
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
@@ -109,6 +115,7 @@ function startGame(gnome, showBoard){
 	var speed = 50;
 	var results = [0,0,0,0]
 	var keysPressed = []
+	var emptyLine = []
 
 
 	for (var i = 0; i < HEIGHT; i++) {
@@ -116,6 +123,10 @@ function startGame(gnome, showBoard){
 		for (var j = 0; j < WIDTH; j++) {
 			board[i][j] = 0;
 		}
+	}
+
+	for (var j = 0; j < WIDTH; j++) {
+		emptyLine.push(0);
 	}
 
 	var selectFigure = function() {
@@ -242,35 +253,27 @@ function startGame(gnome, showBoard){
 
 	function checkForLine() {
 		var bordRow = []
-
-		for (var j = 0; j < WIDTH; j++) {
-			bordRow.push(board[HEIGHT-1][j])
-		}
-					
-		if(bordRow.indexOf(0) == (-1)) {
+		var lines = 0
+		
+		for (var i = HEIGHT-1; i >= 0; i--) {
+			var line = true
 			for (var j = 0; j < WIDTH; j++) {
-				board[HEIGHT-1][j] = 0
-			}
-
-			score += 10
-			var newBoard = []
-			for (var i = 0; i < HEIGHT; i++) {
-				newBoard[i] = [];
-				for (var j = 0; j < WIDTH; j++) {
-					newBoard[i][j] = 0;
+				if(board[i][j] == 0) {
+					line = false
+					break
 				}
 			}
-
-			for (var i = 1; i < HEIGHT; i++) {
-				for (var j = 0; j < WIDTH; j++) {
-					newBoard[i][j] = board[i-1][j];
-				}
+			if(line) {
+				board.splice(i,1)
+				lines++
+				score+=10
 			}
-			board = newBoard
-
 
 		}
-		bordRow = []
+
+		for (var i = 0; i < lines; i++) {
+			board.unshift(emptyLine.slice())
+		}
 	}
 
 	function printBoard() {
@@ -323,12 +326,25 @@ function shapeKonstruktor(b, startX, startY, type) {
 	var x = startX
 	var y = startY
 	var tiles
+	var rotation = 0
+	var t = type
 
 	if(type == O_SHAPE) {
 		tiles = [[x, y], [x+1, y], [x, y+1], [x+1, y+1]]
 	} else if(type == I_SHAPE) {
 		tiles = [[x, y], [x, y-1], [x, y-2], [x, y-3]]
+	} else if(type == L_SHAPE) {
+		tiles = [[x,y], [x+1,y], [x,y-1], [x,y-2]]
+	} else if(type == J_SHAPE) {
+		tiles = [[x,y], [x+1,y], [x+1,y-1], [x+1,y-2]]
+	} else if(type == Z_SHAPE) {
+		tiles = [[x-1,y-1], [x,y-1], [x,y], [x+1,y]]
+	} else if(type == S_SHAPE) {
+		tiles = [[x-1,y], [x,y], [x,y-1], [x+1,y-1]]
+	} else if(type == T_SHAPE) {
+		tiles = [[x-1,y-1], [x,y-1], [x+1,y-1], [x,y]]
 	}
+
 	var board = b
 
 	this.moveLeft = function() {
@@ -456,7 +472,98 @@ function shapeKonstruktor(b, startX, startY, type) {
 			updateTilePositionOnBoard(board, tiles)
 		}
 		return {"possible" : canMoveDown, "reason" : res}
+	},
+
+	this.rotate_T_SHAPE = function() {
+		var shouldRotate = false
+		var checktileX
+		var checktileY
+		if(rotation == 0) {
+			checktileX = tiles[1][0] 
+			checktileY = tiles[1][1] - 1
+			if(board[checktileY][checktileX] == 0) {
+				shouldRotate = true
+			}
+		} else if(rotation == 90) {
+			checktileX = tiles[1][0] - 1
+			checktileY = tiles[1][1] 
+			if(checktileX > 0) {
+				if(board[checktileY][checktileX] == 0) {
+					shouldRotate = true
+				}
+			}
+		} else if(rotation == 180) {
+			checktileX = tiles[1][0] 
+			checktileY = tiles[1][1] + 1
+			if(board[checktileY][checktileX] == 0) {
+				shouldRotate = true
+			}
+		} else if(rotation == 270) {
+			checktileX = tiles[1][0] + 1
+			checktileY = tiles[1][1]
+			if(checktileX < board.length - 2)
+			if(board[checktileY][checktileX] == 0) {
+				shouldRotate = true
+			}
+		}
+
+		if(shouldRotate) {
+			var x0 = tiles[3][0]
+			var y0 = tiles[3][1]
+
+			var x3 = tiles[2][0]
+			var y3 = tiles[2][1]
+
+			tiles[0] = [x3,y3]
+			tiles[3] = [x3,y3]
+			tiles[2] = [checktileX, checktileY]
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_I_SHAPE = function() {
+		if(rotation == 0) {
+			var c0x = tiles[1][0] + 1
+			var c0y = tiles[1][1]
+			var c2x = tiles[1][0] - 1
+			var c2y = tiles[1][1]
+			var c3x = tiles[1][0] - 2
+			var c3y = tiles[1][1]
+			if((c3x >= 0) && (c0x < board.length - 2))
+			if((board[c0y][c0x] == 0) && (board[c2y][c2x] == 0) && (board[c3y][c3x] == 0)) {
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[2][0] = c2x
+				tiles[2][1] = c2y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 180
+			}
+
+		} else if(rotation == 180) {
+			var c0x = tiles[1][0]
+			var c0y = tiles[1][1] + 1
+			var c2x = tiles[1][0]
+			var c2y = tiles[1][1] - 1
+			var c3x = tiles[1][0]
+			var c3y = tiles[1][1] - 2
+			if((board[c0y][c0x] == 0) && (board[c2y][c2x] == 0) && (board[c3y][c3x] == 0)) {
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[2][0] = c2x
+				tiles[2][1] = c2y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_L_SHAPE = function() {
+
 	}
+
 }
 
 function removeTileFromBoard(board, tileArray) {
