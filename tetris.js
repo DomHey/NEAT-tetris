@@ -1,16 +1,24 @@
 var _ = require('lodash');
 var sleep = require('system-sleep');
+var clivas = require('clivas');
 
 var NOCOLLISION = 0
 var TILECOLLISION = 1
 var GAMEEND = 2
 
-var O_SHAPE = 0
-var I_SHAPE = 1
+var O_SHAPE = 1
+var I_SHAPE = 2
+var L_SHAPE = 3
+var Z_SHAPE = 4
+var S_SHAPE = 5
+var J_SHAPE = 6
+var T_SHAPE = 7
 
 
-var WIDTH = 16;
+var WIDTH = 10;
 var HEIGHT = 20;
+var blockSize = 1
+
 var bestScore = 0
 var generation = 1
 var genomesCount = 0
@@ -23,7 +31,7 @@ var mutationRate = 0.2
 var weightMutationRate = 0.3
 var weightMaxMutationAmount = 0.1
 var popCounter = 1
-var initialPopulationSize = 10
+var initialPopulationSize = 200
 var bestGenome
 var tileSequence = []
 
@@ -36,8 +44,8 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 50) {
-		setTimeout(showBestGenome, 10000)
+	if(popCounter == 100) {
+		setTimeout(showBestGenome, 5000)
 		break;
 	}
 
@@ -88,11 +96,11 @@ function mutatePopulation() {
 function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
-		tileSequence.push(getRandomInt(0,1))
+		tileSequence.push(getRandomInt(1,7))
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
-		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(1,40) , 3))
+		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(10,40) , 4))
 	}
 }
 
@@ -109,6 +117,7 @@ function startGame(gnome, showBoard){
 	var speed = 50;
 	var results = [0,0,0,0]
 	var keysPressed = []
+	var emptyLine = []
 
 
 	for (var i = 0; i < HEIGHT; i++) {
@@ -116,6 +125,10 @@ function startGame(gnome, showBoard){
 		for (var j = 0; j < WIDTH; j++) {
 			board[i][j] = 0;
 		}
+	}
+
+	for (var j = 0; j < WIDTH; j++) {
+		emptyLine.push(0);
 	}
 
 	var selectFigure = function() {
@@ -184,6 +197,7 @@ function startGame(gnome, showBoard){
 	    results.push(output[0])
 	    results.push(output[1])
 	    results.push(output[2])
+	    results.push(output[3])
 
 	    var key = indexOfMax(results)
 
@@ -210,7 +224,10 @@ function startGame(gnome, showBoard){
 	    	} else if(move == 1) {
 	    		figure.moveRight()
 	    		canMove = figure.moveDown()
-	    	} else if(move = 2) {
+	    	} else if(move == 2) {
+	    		canMove = figure.moveDown()
+	    	} else if(move == 3) {
+	    		figure.rotate()
 	    		canMove = figure.moveDown()
 	    	}
 			
@@ -226,7 +243,7 @@ function startGame(gnome, showBoard){
 		var filledFields = 0
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
-				if(board[i][j] == 1) {
+				if(board[i][j] != 0) {
 					filledFields++;
 				}
 			}
@@ -236,63 +253,76 @@ function startGame(gnome, showBoard){
 			console.log("SCORE" + score)
 			console.log("FF" + filledFields)
 		}
-
+		//return score
 		return (score + filledFields)
 	}
 
 	function checkForLine() {
 		var bordRow = []
-
-		for (var j = 0; j < WIDTH; j++) {
-			bordRow.push(board[HEIGHT-1][j])
-		}
-					
-		if(bordRow.indexOf(0) == (-1)) {
+		var lines = 0
+		
+		for (var i = HEIGHT-1; i >= 0; i--) {
+			var line = true
 			for (var j = 0; j < WIDTH; j++) {
-				board[HEIGHT-1][j] = 0
-			}
-
-			score += 10
-			var newBoard = []
-			for (var i = 0; i < HEIGHT; i++) {
-				newBoard[i] = [];
-				for (var j = 0; j < WIDTH; j++) {
-					newBoard[i][j] = 0;
+				if(board[i][j] == 0) {
+					line = false
+					break
 				}
 			}
-
-			for (var i = 1; i < HEIGHT; i++) {
-				for (var j = 0; j < WIDTH; j++) {
-					newBoard[i][j] = board[i-1][j];
-				}
+			if(line) {
+				board.splice(i,1)
+				lines++
+				score+=10
 			}
-			board = newBoard
-
 
 		}
-		bordRow = []
+
+		for (var i = 0; i < lines; i++) {
+			board.unshift(emptyLine.slice())
+		}
 	}
 
 	function printBoard() {
-		sleep(20)
-		var bordRow = []
-		var lines = process.stdout.getWindowSize()[1];
-		for(var i = 0; i < lines; i++) {
-		    console.log('\r\n');
-		}
+		var lines = []
 		for (var i = 0; i < HEIGHT; i++) {
+			var boardLine = ""
 			for (var j = 0; j < WIDTH; j++) {
-				bordRow.push(board[i][j])
+				if(board[i][j] != 0) {
+					boardLine+='{'+returnFigureColor(board[i][j])+'+inverse:  }'
+				} else	{
+					boardLine+='{black+inverse:  }'
+				}
 			}
-			console.log(bordRow)
-			bordRow = []
-
+			lines.push(boardLine)
 		}
+		clivas.clear()
+		for (var i = 0; i < lines.length; i++) {
+			clivas.line(lines[i])
+		}
+		sleep(200)
 	}
 
 	selectFigure();
 	return gameLoop() // if the game ends return score to fitnessfunction
 
+}
+
+function returnFigureColor(f) {
+	if(f == 1) {
+		return 'white'
+	} else if(f == 2) {
+		return 'red'
+	} else if(f == 3) {
+		return 'green'
+	} else if(f == 4) {
+		return 'yellow'
+	} else if(f == 5) {
+		return 'blue'
+	} else if(f == 6) {
+		return 'magenta'
+	} else if(f == 7) {
+		return 'cyan'
+	}
 }
 
 function checkTilePoints(baseArray, point) {
@@ -323,12 +353,25 @@ function shapeKonstruktor(b, startX, startY, type) {
 	var x = startX
 	var y = startY
 	var tiles
+	var rotation = 0
+	var shape = type
 
 	if(type == O_SHAPE) {
 		tiles = [[x, y], [x+1, y], [x, y+1], [x+1, y+1]]
 	} else if(type == I_SHAPE) {
 		tiles = [[x, y], [x, y-1], [x, y-2], [x, y-3]]
+	} else if(type == L_SHAPE) {
+		tiles = [[x,y], [x+1,y], [x,y-1], [x,y-2]]
+	} else if(type == J_SHAPE) {
+		tiles = [[x,y], [x+1,y], [x+1,y-1], [x+1,y-2]]
+	} else if(type == Z_SHAPE) {
+		tiles = [[x-1,y-1], [x,y-1], [x,y], [x+1,y]]
+	} else if(type == S_SHAPE) {
+		tiles = [[x-1,y], [x,y], [x,y-1], [x+1,y-1]]
+	} else if(type == T_SHAPE) {
+		tiles = [[x-1,y-1], [x,y-1], [x+1,y-1], [x,y]]
 	}
+
 	var board = b
 
 	this.moveLeft = function() {
@@ -364,7 +407,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][0] = sx - 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 
 		return canMoveLeft
@@ -402,13 +445,10 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][0] = sx + 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 
 		return canMoveRight
-	},
-	this.rotate = function() {
-
 	},
 	this.moveDown = function() {
 		var canMoveDown = true
@@ -453,10 +493,324 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][1] = sy + 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 		return {"possible" : canMoveDown, "reason" : res}
+	},
+
+	this.rotate_T_SHAPE = function(board, tiles) {
+		var checktileX
+		var checktileY
+		if(rotation == 0) {
+			checktileX = tiles[1][0] 
+			checktileY = tiles[1][1] - 1
+		} else if(rotation == 90) {
+			checktileX = tiles[1][0] - 1
+			checktileY = tiles[1][1] 
+		} else if(rotation == 180) {
+			checktileX = tiles[1][0] 
+			checktileY = tiles[1][1] + 1
+		} else if(rotation == 270) {
+			checktileX = tiles[1][0] + 1
+			checktileY = tiles[1][1]
+		}
+
+		if(isBoardCellEmpty(board, checktileX, checktileY)) {
+			removeTileFromBoard(board, tiles)
+			var x0 = tiles[3][0]
+			var y0 = tiles[3][1]
+
+			var x3 = tiles[2][0]
+			var y3 = tiles[2][1]
+
+			tiles[0] = [x0,y0]
+			tiles[3] = [x3,y3]
+			tiles[2] = [checktileX, checktileY]
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_I_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[1][0] + 1
+			c0y = tiles[1][1]
+			c2x = tiles[1][0] - 1
+			c2y = tiles[1][1]
+			c3x = tiles[1][0] - 2
+			c3y = tiles[1][1]
+
+		} else if(rotation == 180) {
+			c0x = tiles[1][0]
+			c0y = tiles[1][1] + 1
+			c2x = tiles[1][0]
+			c2y = tiles[1][1] - 1
+			c3x = tiles[1][0]
+			c3y = tiles[1][1] - 2
+		}
+
+		if((isBoardCellEmpty(board, c0x, c0y)) && (isBoardCellEmpty(board, c2x, c2y)) && (isBoardCellEmpty(board, c3x, c3y))) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+			rotation += 180
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+
+
+	},
+	this.rotate_L_SHAPE = function(board, tiles) {
+		var shouldRotate = false
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 2
+			c0y = tiles[0][1]
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] 
+			c3y = tiles[3][1] + 2
+		} else if(rotation == 90) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] - 2
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+		} else if(rotation == 180) {
+			c0x = tiles[0][0] - 2
+			c0y = tiles[0][1]
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] - 2
+		} else if(rotation == 270) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] + 2
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+		}
+		if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c1x, c1y)) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[1][0] = c1x
+			tiles[1][1] = c1y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_J_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] - 1
+			c1x = tiles[1][0]
+			c1y = tiles[1][1] - 2
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+		} else if(rotation == 90) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] - 1
+			c1x = tiles[1][0] - 2
+			c1y = tiles[1][1]
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] + 2
+		} else if(rotation == 180) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] + 1
+			c1x = tiles[1][0]
+			c1y = tiles[1][1] + 2
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+		} else if(rotation == 270) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] + 1
+			c1x = tiles[1][0] + 2
+			c1y = tiles[1][1]
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0]
+			c3y = tiles[3][1] - 2
+		}
+		if(isBoardCellEmpty(board, c2x, c2y) && isBoardCellEmpty(board, c3x, c3y)) {
+			removeTileFromBoard(board, tiles)
+			tiles[0][0] = c0x
+			tiles[0][1] = c0y
+			tiles[1][0] = c1x
+			tiles[1][1] = c1y
+			tiles[2][0] = c2x
+			tiles[2][1] = c2y
+			tiles[3][0] = c3x
+			tiles[3][1] = c3y
+
+			rotation += 90
+			if(rotation == 360) {
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_Z_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c1x
+		var c1y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] + 2
+			c1x = tiles[1][0] - 1
+			c1y = tiles[1][1] + 1
+			c3x = tiles[3][0] - 1
+			c3y = tiles[3][1] - 1
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c1x, c1y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[1][0] = c1x
+				tiles[1][1] = c1y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 180
+			}
+		} else if(rotation == 180) {
+			c0x = tiles[0][0]
+			c0y = tiles[0][1] - 2
+			c1x = tiles[1][0] + 1
+			c1y = tiles[1][1] - 1
+			c3x = tiles[3][0] + 1
+			c3y = tiles[3][1] + 1
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[1][0] = c1x
+				tiles[1][1] = c1y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 0
+			}
+		}
+	},
+	this.rotate_S_SHAPE = function(board, tiles) {
+		var c0x 
+		var c0y
+		var c2x
+		var c2y
+		var c3x
+		var c3y
+		if(rotation == 0) {
+			c0x = tiles[0][0] + 1
+			c0y = tiles[0][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
+			c3x = tiles[3][0] - 2
+			c3y = tiles[3][1]
+			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[2][0] = c2x
+				tiles[2][1] = c2y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 180
+			}
+		} else if(rotation == 180) {
+			c0x = tiles[0][0] - 1
+			c0y = tiles[0][1] - 1
+			c2x = tiles[2][0] + 1
+			c2y = tiles[2][1] - 1
+			c3x = tiles[3][0] + 2
+			c3y = tiles[3][1]
+			if(isBoardCellEmpty(board, c2x, c2y) && isBoardCellEmpty(board, c3x, c3y)) {
+				removeTileFromBoard(board, tiles)
+				tiles[0][0] = c0x
+				tiles[0][1] = c0y
+				tiles[2][0] = c2x
+				tiles[2][1] = c2y
+				tiles[3][0] = c3x
+				tiles[3][1] = c3y
+				rotation = 0
+			}
+		}
+	},
+	this.rotate = function() {
+		if(type == O_SHAPE) {
+			return
+		} else if(type == I_SHAPE) {
+			this.rotate_I_SHAPE(board, tiles)
+		} else if(type == L_SHAPE) {
+			this.rotate_L_SHAPE(board, tiles)
+		} else if(type == J_SHAPE) {
+			this.rotate_J_SHAPE(board, tiles)
+		} else if(type == Z_SHAPE) {
+			this.rotate_Z_SHAPE(board, tiles)
+		} else if(type == S_SHAPE) {
+			this.rotate_S_SHAPE(board, tiles)
+		} else if(type == T_SHAPE) {
+			this.rotate_T_SHAPE(board, tiles)
+		}
+		updateTilePositionOnBoard(board, tiles, shape)
 	}
+}
+
+function isBoardCellEmpty(board, x, y) {
+	if(x < 0) return false;
+	if(x > WIDTH-1) return false;
+	if(y < 0) return true;
+	if(y > HEIGHT-1) return false;
+	return (0 == board[y][x])
 }
 
 function removeTileFromBoard(board, tileArray) {
@@ -469,13 +823,13 @@ function removeTileFromBoard(board, tileArray) {
 	}
 }
 
-function updateTilePositionOnBoard(board, tileArray) {
+function updateTilePositionOnBoard(board, tileArray, shape) {
 	for (var i = tileArray.length - 1; i >= 0; i--) {
 		var t = tileArray[i]
 		if(t[1] < 0) {
 			continue
 		}
-		board[t[1]][t[0]] = 1
+		board[t[1]][t[0]] = shape
 	}
 }
 
