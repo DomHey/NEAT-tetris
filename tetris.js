@@ -1,21 +1,24 @@
 var _ = require('lodash');
 var sleep = require('system-sleep');
+var clivas = require('clivas');
 
 var NOCOLLISION = 0
 var TILECOLLISION = 1
 var GAMEEND = 2
 
-var O_SHAPE = 0
-var I_SHAPE = 1
-var L_SHAPE = 2
-var Z_SHAPE = 3
-var S_SHAPE = 4
-var J_SHAPE = 5
-var T_SHAPE = 6
+var O_SHAPE = 1
+var I_SHAPE = 2
+var L_SHAPE = 3
+var Z_SHAPE = 4
+var S_SHAPE = 5
+var J_SHAPE = 6
+var T_SHAPE = 7
 
 
 var WIDTH = 10;
 var HEIGHT = 20;
+var blockSize = 1
+
 var bestScore = 0
 var generation = 1
 var genomesCount = 0
@@ -41,7 +44,7 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 300) {
+	if(popCounter == 100) {
 		setTimeout(showBestGenome, 5000)
 		break;
 	}
@@ -93,7 +96,7 @@ function mutatePopulation() {
 function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
-		tileSequence.push(getRandomInt(0,6))
+		tileSequence.push(getRandomInt(1,7))
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
@@ -240,7 +243,7 @@ function startGame(gnome, showBoard){
 		var filledFields = 0
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
-				if(board[i][j] == 1) {
+				if(board[i][j] != 0) {
 					filledFields++;
 				}
 			}
@@ -250,8 +253,8 @@ function startGame(gnome, showBoard){
 			console.log("SCORE" + score)
 			console.log("FF" + filledFields)
 		}
-		return score
-		//return (score + filledFields)
+		//return score
+		return (score + filledFields)
 	}
 
 	function checkForLine() {
@@ -280,25 +283,46 @@ function startGame(gnome, showBoard){
 	}
 
 	function printBoard() {
-		sleep(20)
-		var bordRow = []
-		var lines = process.stdout.getWindowSize()[1];
-		for(var i = 0; i < lines; i++) {
-		    console.log('\r\n');
-		}
+		var lines = []
 		for (var i = 0; i < HEIGHT; i++) {
+			var boardLine = ""
 			for (var j = 0; j < WIDTH; j++) {
-				bordRow.push(board[i][j])
+				if(board[i][j] != 0) {
+					boardLine+='{'+returnFigureColor(board[i][j])+'+inverse:  }'
+				} else	{
+					boardLine+='{black+inverse:  }'
+				}
 			}
-			console.log(bordRow)
-			bordRow = []
-
+			lines.push(boardLine)
 		}
+		clivas.clear()
+		for (var i = 0; i < lines.length; i++) {
+			clivas.line(lines[i])
+		}
+		sleep(200)
 	}
 
 	selectFigure();
 	return gameLoop() // if the game ends return score to fitnessfunction
 
+}
+
+function returnFigureColor(f) {
+	if(f == 1) {
+		return 'white'
+	} else if(f == 2) {
+		return 'red'
+	} else if(f == 3) {
+		return 'green'
+	} else if(f == 4) {
+		return 'yellow'
+	} else if(f == 5) {
+		return 'blue'
+	} else if(f == 6) {
+		return 'magenta'
+	} else if(f == 7) {
+		return 'cyan'
+	}
 }
 
 function checkTilePoints(baseArray, point) {
@@ -330,7 +354,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 	var y = startY
 	var tiles
 	var rotation = 0
-	var t = type
+	var shape = type
 
 	if(type == O_SHAPE) {
 		tiles = [[x, y], [x+1, y], [x, y+1], [x+1, y+1]]
@@ -383,7 +407,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][0] = sx - 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 
 		return canMoveLeft
@@ -421,7 +445,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][0] = sx + 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 
 		return canMoveRight
@@ -469,7 +493,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				var sy = t[1]
 				tiles[i][1] = sy + 1
 			}
-			updateTilePositionOnBoard(board, tiles)
+			updateTilePositionOnBoard(board, tiles, shape)
 		}
 		return {"possible" : canMoveDown, "reason" : res}
 	},
@@ -499,7 +523,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 			var x3 = tiles[2][0]
 			var y3 = tiles[2][1]
 
-			tiles[0] = [x3,y3]
+			tiles[0] = [x0,y0]
 			tiles[3] = [x3,y3]
 			tiles[2] = [checktileX, checktileY]
 			rotation += 90
@@ -728,8 +752,8 @@ function shapeKonstruktor(b, startX, startY, type) {
 		if(rotation == 0) {
 			c0x = tiles[0][0] + 1
 			c0y = tiles[0][1] + 1
-			c2x = tiles[1][0] - 1
-			c2y = tiles[1][1] + 1
+			c2x = tiles[2][0] - 1
+			c2y = tiles[2][1] + 1
 			c3x = tiles[3][0] - 2
 			c3y = tiles[3][1]
 			if(isBoardCellEmpty(board, c0x, c0y) && isBoardCellEmpty(board, c3x, c3y)) {
@@ -777,7 +801,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 		} else if(type == T_SHAPE) {
 			this.rotate_T_SHAPE(board, tiles)
 		}
-		updateTilePositionOnBoard(board, tiles)
+		updateTilePositionOnBoard(board, tiles, shape)
 	}
 }
 
@@ -799,13 +823,13 @@ function removeTileFromBoard(board, tileArray) {
 	}
 }
 
-function updateTilePositionOnBoard(board, tileArray) {
+function updateTilePositionOnBoard(board, tileArray, shape) {
 	for (var i = tileArray.length - 1; i >= 0; i--) {
 		var t = tileArray[i]
 		if(t[1] < 0) {
 			continue
 		}
-		board[t[1]][t[0]] = 1
+		board[t[1]][t[0]] = shape
 	}
 }
 
