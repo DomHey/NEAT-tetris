@@ -6,13 +6,13 @@ var NOCOLLISION = 0
 var TILECOLLISION = 1
 var GAMEEND = 2
 
-var O_SHAPE = 1
-var I_SHAPE = 2
-var L_SHAPE = 3
-var Z_SHAPE = 4
-var S_SHAPE = 5
-var J_SHAPE = 6
-var T_SHAPE = 7
+var O_SHAPE = 3
+var I_SHAPE = 4
+var L_SHAPE = 5
+var Z_SHAPE = 6
+var S_SHAPE = 7
+var J_SHAPE = 8
+var T_SHAPE = 9
 
 
 var WIDTH = 10;
@@ -44,7 +44,7 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 100) {
+	if(popCounter == 200) {
 		setTimeout(showBestGenome, 5000)
 		break;
 	}
@@ -84,8 +84,14 @@ function decimatePopulation() {
 }
 
 function mutatePopulation() {
+	var mRate
 	for (var i = 0; i < finishedPopulation.length; i++) {
-		if(Math.random() <= mutationRate) {
+		if(finishedPopulation.length * 2 < initialPopulationSize) {
+			mRate = 0.5
+		} else {
+			mRate = mutationRate
+		}
+		if(Math.random() <= mRate) {
 			var newNetwork = ((finishedPopulation[i]).pop).cloneNetwork()
 			newNetwork.mutateWeights()
 			population.push(newNetwork)
@@ -96,11 +102,11 @@ function mutatePopulation() {
 function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
-		tileSequence.push(getRandomInt(1,7))
+		tileSequence.push(getRandomInt(3,9))
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
-		population.push(new createNeuronalNet(WIDTH * HEIGHT, getRandomInt(10,40) , 4))
+		population.push(new createNeuronalNet(WIDTH * HEIGHT + 1, getRandomInt(10,40) , 4))
 	}
 }
 
@@ -123,12 +129,12 @@ function startGame(gnome, showBoard){
 	for (var i = 0; i < HEIGHT; i++) {
 		board[i] = [];
 		for (var j = 0; j < WIDTH; j++) {
-			board[i][j] = 0;
+			board[i][j] = new boardTile();
 		}
 	}
 
 	for (var j = 0; j < WIDTH; j++) {
-		emptyLine.push(0);
+		emptyLine.push(new boardTile());
 	}
 
 	var selectFigure = function() {
@@ -138,59 +144,16 @@ function startGame(gnome, showBoard){
 		tileSeqIndex++
 	};
 
-	var moveFigure = function(dx,dy) {
-		if(y == -1) {
-			if(board[y+1][x] == 1) {
-				return false
-			}
-			y++;
-			return true;
-		}
-
-		if(dx < 0) {
-			// moveLeft
-			if(x > 0) {
-				// can move left because not on border
-				if(board[y][x+dx] == 0){
-					//move left when no stone is blocking it
-					board[y][x] = 0
-					x+=dx
-					board[y][x] = 1
-				}
-			}
-		} else if(dx > 0) {
-			// move right
-			if(x < WIDTH - 1) {
-				// can move right because not on border
-				if(board[y][x+dx] == 0){
-					board[y][x] = 0
-					x+=dx
-					board[y][x] = 1
-				}
-			}
-
-		} else if(dx == 0) {
-			//move down
-			if(y < HEIGHT - 1) {
-				if(board[y+1][x] == 0) {
-					board[y][x] = 0
-					y++;
-					board[y][x] = 1
-				} else {
-					return false
-				}
-			} else {
-				return false
-			}
-		}
-		return true
-	}
-
-
 	function calculateInput(gn) {
-		var inputdata = []
-		inputdata = [].concat.apply([], board)
-	    gn.setInput(inputdata)
+		var inputTiles = []
+		var inputData = []
+		inputTiles = [].concat.apply([], board)
+		for (var i = 0; i < inputTiles.length; i++) {
+			var tv = inputTiles[i].getTileValue()
+			inputData.push(tv)
+		}
+		inputData.push(tileSequence[tileSeqIndex])
+	    gn.setInput(inputData)
 	    var output = gn.activate()
 
 	    results = []
@@ -243,7 +206,7 @@ function startGame(gnome, showBoard){
 		var filledFields = 0
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
-				if(board[i][j] != 0) {
+				if((board[i][j]).getTileValue() != 0) {
 					filledFields++;
 				}
 			}
@@ -264,7 +227,7 @@ function startGame(gnome, showBoard){
 		for (var i = HEIGHT-1; i >= 0; i--) {
 			var line = true
 			for (var j = 0; j < WIDTH; j++) {
-				if(board[i][j] == 0) {
+				if((board[i][j]).getTileValue() == 0) {
 					line = false
 					break
 				}
@@ -287,8 +250,8 @@ function startGame(gnome, showBoard){
 		for (var i = 0; i < HEIGHT; i++) {
 			var boardLine = ""
 			for (var j = 0; j < WIDTH; j++) {
-				if(board[i][j] != 0) {
-					boardLine+='{'+returnFigureColor(board[i][j])+'+inverse:  }'
+				if((board[i][j]).getTileValue() != 0) {
+					boardLine+='{'+returnFigureColor((board[i][j]).getColor())+'+inverse:  }'
 				} else	{
 					boardLine+='{black+inverse:  }'
 				}
@@ -299,7 +262,7 @@ function startGame(gnome, showBoard){
 		for (var i = 0; i < lines.length; i++) {
 			clivas.line(lines[i])
 		}
-		sleep(200)
+		sleep(20)
 	}
 
 	selectFigure();
@@ -308,19 +271,19 @@ function startGame(gnome, showBoard){
 }
 
 function returnFigureColor(f) {
-	if(f == 1) {
+	if(f == 3) {
 		return 'white'
-	} else if(f == 2) {
-		return 'red'
-	} else if(f == 3) {
-		return 'green'
 	} else if(f == 4) {
-		return 'yellow'
+		return 'red'
 	} else if(f == 5) {
-		return 'blue'
+		return 'green'
 	} else if(f == 6) {
-		return 'magenta'
+		return 'yellow'
 	} else if(f == 7) {
+		return 'blue'
+	} else if(f == 8) {
+		return 'magenta'
+	} else if(f == 9) {
 		return 'cyan'
 	}
 }
@@ -387,7 +350,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				continue
 			}
 			//check if blocked on the left side by itself or another shape
-			if(board[t[1]][t[0]-1] != 0) {
+			if((board[t[1]][t[0]-1]).getTileValue() != 0) {
 				var collisionPoint = [t[0]-1, t[1]]
 				if(!checkTilePoints(tiles, collisionPoint)){
 					canMoveLeft = false
@@ -417,7 +380,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 		for (var i = tiles.length - 1; i >= 0; i--) {
 			var t = tiles[i]
 			//tile on the right corner
-			if(t[0] == board[0].length) {
+			if(t[0] == board[0].length - 1) {
 				canMoveRight = false
 				break
 			}
@@ -425,7 +388,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 				continue
 			}
 			//check if blocked on the right side by itself or another shape
-			if(board[t[1]][t[0]+1] != 0) {
+			if((board[t[1]][t[0]+1]).getTileValue() != 0) {
 				var collisionPoint = [t[0]+1, t[1]]
 				if(!checkTilePoints(tiles, collisionPoint)){
 					canMoveRight = false
@@ -465,7 +428,7 @@ function shapeKonstruktor(b, startX, startY, type) {
 			}
 
 			//check if blocked on the bottom side by itself or another shape
-			if(board[t[1]+1][t[0]] != 0) {
+			if((board[t[1]+1][t[0]]).getTileValue() != 0) {
 				var collisionPoint = [t[0], t[1]+1]
 				if(!checkTilePoints(tiles, collisionPoint)){
 					canMoveDown = false
@@ -810,7 +773,7 @@ function isBoardCellEmpty(board, x, y) {
 	if(x > WIDTH-1) return false;
 	if(y < 0) return true;
 	if(y > HEIGHT-1) return false;
-	return (0 == board[y][x])
+	return (0 == (board[y][x]).getTileValue())
 }
 
 function removeTileFromBoard(board, tileArray) {
@@ -819,7 +782,9 @@ function removeTileFromBoard(board, tileArray) {
 		if(t[1] < 0) {
 			continue
 		}
-		board[t[1]][t[0]] = 0
+		var bt = board[t[1]][t[0]]
+		bt.setTileValue(0)
+		bt.setColor(0)
 	}
 }
 
@@ -829,7 +794,27 @@ function updateTilePositionOnBoard(board, tileArray, shape) {
 		if(t[1] < 0) {
 			continue
 		}
-		board[t[1]][t[0]] = shape
+		var bt = board[t[1]][t[0]]
+		bt.setTileValue(1)
+		bt.setColor(shape)
+	}
+}
+
+function boardTile() {
+	var color = 0
+	var tileValue = 0
+
+	this.setTileValue = function(v) {
+		tileValue = v
+	},
+	this.setColor = function(c) {
+		color = c
+	},
+	this.getTileValue = function() {
+		return tileValue
+	},
+	this.getColor = function() {
+		return color
 	}
 }
 
@@ -1019,9 +1004,9 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 				if(Math.random() < weightMutationRate) {
 					var w = weights[j]
 					if(getRandomInt(0,1) == 0) {
-						newWeights.push(w - weightMaxMutationAmount)
+						newWeights.push(w - (Math.random() / (1/weightMaxMutationAmount)))
 					} else {
-						newWeights.push(w + weightMaxMutationAmount)
+						newWeights.push(w + (Math.random() / (1/weightMaxMutationAmount)))
 					}
 				} else {
 					var w = weights[j]
@@ -1040,9 +1025,9 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 			for (var j = 0; j < weights.length; j++) {
 				if(Math.random() < weightMutationRate) {
 					if(getRandomInt(0,1) == 0) {
-						newWeights.push(weights[j] - weightMaxMutationAmount)
+						newWeights.push(weights[j] - (Math.random() / (1/weightMaxMutationAmount)))
 					} else {
-						newWeights.push(weights[j] + weightMaxMutationAmount)
+						newWeights.push(weights[j] + (Math.random() / (1/weightMaxMutationAmount)))
 					}
 				} else {
 					newWeights.push(weights[j])
