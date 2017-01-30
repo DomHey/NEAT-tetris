@@ -44,7 +44,7 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 21) {
+	if(popCounter == 30) {
 		setTimeout(showBestGenome, 5000)
 		break;
 	}
@@ -87,7 +87,7 @@ function mutatePopulation() {
 	var mRate
 	for (var i = 0; i < finishedPopulation.length; i++) {
 		if(finishedPopulation.length * 2 < initialPopulationSize) {
-			mRate = 0.5
+			mRate = 1
 		} else {
 			mRate = mutationRate
 		}
@@ -124,7 +124,7 @@ function startGame(gnome, showBoard){
 	var speed = 50;
 	var results = [0,0,0,0]
 	var keysPressed = []
-	var emptyLine = []
+	
 
 
 	for (var i = 0; i < HEIGHT; i++) {
@@ -133,10 +133,7 @@ function startGame(gnome, showBoard){
 			board[i][j] = new boardTile();
 		}
 	}
-
-	for (var j = 0; j < WIDTH; j++) {
-		emptyLine.push(new boardTile());
-	}
+	
 
 	var selectFigure = function() {
 		y = -1
@@ -176,9 +173,10 @@ function startGame(gnome, showBoard){
 				printBoard()
 			}
 
-			if(score > 200) {
+			if(score > 10000) {
 				break
 			}
+
 		
 			var move = calculateInput(gn) // calculate the input accordingly to genome
 			var canMove
@@ -207,10 +205,22 @@ function startGame(gnome, showBoard){
 		var filledFields = 0
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
-				var leftTile = isBoardCellEmpty(board, j-1, i)
-				var rightTile = isBoardCellEmpty(board, j+1, i)
+				var ff = []
 
-				if(!leftTile && !rightTile) {
+				if(isBoardCellEmpty(board, j, i)) {
+					continue
+				}
+
+				ff.push(!isBoardCellEmpty(board, j-1, i))
+				ff.push(!isBoardCellEmpty(board, j+1, i))
+				ff.push(!isBoardCellEmpty(board, j-1, i-1))
+				ff.push(!isBoardCellEmpty(board, j+1, i-1))
+				ff.push(!isBoardCellEmpty(board, j-1, i+1))
+				ff.push(!isBoardCellEmpty(board, j+1, i+1))
+				ff.push(!isBoardCellEmpty(board, j, i+1))
+				ff.push(!isBoardCellEmpty(board, j, i-1))
+
+				if(ff.indexOf(false) == -1) {
 					filledFields++
 				}
 			}
@@ -245,7 +255,11 @@ function startGame(gnome, showBoard){
 		}
 
 		for (var i = 0; i < lines; i++) {
-			board.unshift(emptyLine.slice())
+			var emptyLine = []
+			for (var j = 0; j < WIDTH; j++) {
+				emptyLine.push(new boardTile());
+			}
+			board.unshift(emptyLine)
 		}
 	}
 
