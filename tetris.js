@@ -44,7 +44,7 @@ while(true) {
 	if(population.length == 0) {
 		break;
 	}
-	if(popCounter == 200) {
+	if(popCounter == 21) {
 		setTimeout(showBestGenome, 5000)
 		break;
 	}
@@ -103,6 +103,7 @@ function createPopulation(amount) {
 
 	for (var i = 100000; i >= 0; i--) {
 		tileSequence.push(getRandomInt(3,9))
+		//tileSequence.push(3)
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
@@ -206,8 +207,11 @@ function startGame(gnome, showBoard){
 		var filledFields = 0
 		for (var i = 0; i < HEIGHT; i++) {
 			for (var j = 0; j < WIDTH; j++) {
-				if((board[i][j]).getTileValue() != 0) {
-					filledFields++;
+				var leftTile = isBoardCellEmpty(board, j-1, i)
+				var rightTile = isBoardCellEmpty(board, j+1, i)
+
+				if(!leftTile && !rightTile) {
+					filledFields++
 				}
 			}
 
@@ -235,7 +239,7 @@ function startGame(gnome, showBoard){
 			if(line) {
 				board.splice(i,1)
 				lines++
-				score+=10
+				score+=100
 			}
 
 		}
