@@ -1,0 +1,24 @@
+{
+  "name": "neattetris",
+  "version": "1.0.0",
+  "description": "NEAT-tetris",
+  "main": "neuronalNet.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DomHey/NEAT-tetris.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DomHey/NEAT-tetris/issues"
+  },
+  "homepage": "https://github.com/DomHey/NEAT-tetris#readme",
+  "dependencies": {
+    "clivas": "^0.2.0",
+    "lodash": "^4.17.4",
+    "system-sleep": "^1.3.0"
+  }
+}

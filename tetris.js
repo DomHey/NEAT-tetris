@@ -31,7 +31,7 @@ var mutationRate = 0.2
 var weightMutationRate = 0.3
 var weightMaxMutationAmount = 0.1
 var popCounter = 1
-var initialPopulationSize = 200
+var initialPopulationSize = 100
 var bestGenome
 var tileSequence = []
 
@@ -39,7 +39,6 @@ createPopulation(initialPopulationSize)
 
 while(true) {
 	var bestPopulationScore = 0
-	console.log("Population: " + popCounter + " size: " + population.length)
 	finishedPopulation = []
 	if(population.length == 0) {
 		break;
@@ -57,11 +56,10 @@ while(true) {
 			bestGenome = _.cloneDeep(population[i])
 
 		}
-		console.log("generation: " + popCounter + " population: " + i + " scored: " + genomeScore)
 		finishedPopulation.push({"pop":population[i], "score":genomeScore})
 	}
 
-	console.log("best score: " + bestScore)
+	console.log("generation: " + popCounter +" best score: " + bestScore)
 
 	decimatePopulation()
 	mutatePopulation()
@@ -107,7 +105,7 @@ function createPopulation(amount) {
 	}
 
 	for (var i = amount - 1; i >= 0; i--) {
-		population.push(new createNeuronalNet(WIDTH * HEIGHT + 1, getRandomInt(10,40) , 4))
+		population.push(new createNeuronalNet(WIDTH * HEIGHT + 1, getRandomInt(1,4), 50, 4))
 	}
 }
 
@@ -892,15 +890,11 @@ function linkKonstruktor()
 	}
 } 
 
-function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
+function createNeuronalNet(inputLayer, hiddenLayerAmount, hiddenLayer, outputLayer) {
+	var hiddenLayers = []
 	var inputNodes = []
 	for (var i = inputLayer - 1; i >= 0; i--) {
 		inputNodes.push(new nodeKonstruktor(INPUT))
-	}
-
-	var hiddenNodes = []
-	for (var i = hiddenLayer - 1; i >= 0; i--) {
-		hiddenNodes.push(new nodeKonstruktor(HIDDEN))
 	}
 
 	var outputNodes = []
@@ -908,15 +902,22 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 		outputNodes.push(new nodeKonstruktor(OUTPUT))
 	}
 
-	for (var i = hiddenNodes.length - 1; i >= 0; i--) {
-		var weights = []
-		for (var j = inputNodes.length - 1; j >= 0; j--) {
-			weights.push(Math.random() - 0.5)
+	for (var k = hiddenLayerAmount - 1; k >= 0; k--) {
+		var hiddenNodes = []
+		for (var i = hiddenLayer - 1; i >= 0; i--) {
+			hiddenNodes.push(new nodeKonstruktor(HIDDEN))
 		}
-		var link = new linkKonstruktor()
-		link.setWeight(weights)
-		link.setBackNodes(inputNodes)
-		hiddenNodes[i].setConnections(link)
+		for (var i = hiddenNodes.length - 1; i >= 0; i--) {
+			var weights = []
+			for (var j = inputNodes.length - 1; j >= 0; j--) {
+				weights.push(Math.random() - 0.5)
+			}
+			var link = new linkKonstruktor()
+			link.setWeight(weights)
+			link.setBackNodes(inputNodes)
+			hiddenNodes[i].setConnections(link)
+		}
+		hiddenLayers.push(hiddenNodes)
 	}
 
 	for (var i = outputNodes.length - 1; i >= 0; i--) {
@@ -942,8 +943,11 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 	},
 
 	this.activate = function() {
-		for (var i = 0; i < hiddenNodes.length; i++) {
-			hiddenNodes[i].activate()
+		for (var j = 0; j < hiddenLayers.length; j++) {
+			var hiddenNodes = hiddenLayers[j]
+			for (var i = 0; i < hiddenNodes.length; i++) {
+				hiddenNodes[i].activate()
+			}
 		}
 
 		var result = []
@@ -958,15 +962,15 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 		return outputNodes
 	},
 
-	this.getHiddenNodes = function(){
-		return hiddenNodes
+	this.getHiddenLayers = function(){
+		return hiddenLayers
 	},
 	this.getInputNodes = function(){
 		return inputNodes
 	},
 
-	this.setHiddenNodes = function(hn) {
-		hiddenNodes = hn.slice()
+	this.setHiddenLayers = function(hl) {
+		hiddenLayers = hl.slice()
 	},
 	this.setOutputNodes = function(on) {
 		outputNodes = on.slice()
@@ -983,17 +987,22 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 		}
 
 
-		var newHiddenNodes = []
+		var newHiddenLayers = []
 		var newOutputNodes = []
 
-		for (var i = 0; i <= hiddenNodes.length - 1; i++) {
-			var link = new linkKonstruktor()
-			var hNode = new nodeKonstruktor(HIDDEN)
-			var w = ((hiddenNodes[i]).getConnection().getWeight()).slice()
-			link.setWeight(w)
-			link.setBackNodes(newInputNodes)
-			hNode.setConnections(link)
-			newHiddenNodes.push(hNode)
+		for (var j = 0; j <= hiddenLayers.length - 1; j++) {
+			var hiddenNodes = hiddenLayers[j]
+			var newHiddenNodes = []
+			for (var i = 0; i <= hiddenNodes.length - 1; i++) {
+				var link = new linkKonstruktor()
+				var hNode = new nodeKonstruktor(HIDDEN)
+				var w = ((hiddenNodes[i]).getConnection().getWeight()).slice()
+				link.setWeight(w)
+				link.setBackNodes(newInputNodes)
+				hNode.setConnections(link)
+				newHiddenNodes.push(hNode)
+			}
+			newHiddenLayers.push(newHiddenNodes)
 		}
 
 		for (var i = 0; i <= outputNodes.length - 1; i++) {
@@ -1006,9 +1015,9 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 			newOutputNodes.push(oNode)
 		}
 
-		var newNetwork = new createNeuronalNet(WIDTH * HEIGHT, 1 , 3)
+		var newNetwork = new createNeuronalNet(inputNodes.length, hiddenLayers.length, hiddenLayers[0].length , outputNodes.length)
 		newNetwork.setInputNodes(newInputNodes)
-		newNetwork.setHiddenNodes(newHiddenNodes)
+		newNetwork.setHiddenLayers(newHiddenLayers)
 		newNetwork.setOutputNodes(newOutputNodes)
 		return newNetwork
 
@@ -1036,22 +1045,24 @@ function createNeuronalNet(inputLayer, hiddenLayer, outputLayer) {
 
 		//mutateHiddenWeights
 
-
-		for (var i = 0; i < hiddenNodes.length; i++) {
-			var weights = (hiddenNodes[i]).getConnection().getWeight()
-			var newWeights = []
-			for (var j = 0; j < weights.length; j++) {
-				if(Math.random() < weightMutationRate) {
-					if(getRandomInt(0,1) == 0) {
-						newWeights.push(weights[j] - (Math.random() / (1/weightMaxMutationAmount)))
+		for (var k = 0; k <= hiddenLayers.length - 1; k++) {
+			var hiddenNodes = hiddenLayers[k]
+			for (var i = 0; i < hiddenNodes.length; i++) {
+				var weights = (hiddenNodes[i]).getConnection().getWeight()
+				var newWeights = []
+				for (var j = 0; j < weights.length; j++) {
+					if(Math.random() < weightMutationRate) {
+						if(getRandomInt(0,1) == 0) {
+							newWeights.push(weights[j] - (Math.random() / (1/weightMaxMutationAmount)))
+						} else {
+							newWeights.push(weights[j] + (Math.random() / (1/weightMaxMutationAmount)))
+						}
 					} else {
-						newWeights.push(weights[j] + (Math.random() / (1/weightMaxMutationAmount)))
+						newWeights.push(weights[j])
 					}
-				} else {
-					newWeights.push(weights[j])
 				}
+				(hiddenNodes[i]).getConnection().setWeight(newWeights)
 			}
-			(hiddenNodes[i]).getConnection().setWeight(newWeights)
 		}
 		return this
 	}
